@@ -1,0 +1,83 @@
+# Paper run for both engines on a node that is *only* this Job:
+#
+#   kubectl taint nodes <node> dedicated=duckdb-bench:NoSchedule
+#   kubectl label nodes <node> dedicated=duckdb-bench
+#
+# Fill image, namespace, and secret names. Mount a filled config.yaml
+# (gitignored) at /app/config/config.yaml. The Job runs Databricks then
+# DuckDB into one CSV. Copy it out when complete:
+#   kubectl cp <pod>:/app/results/benchmark_results.csv ./results/
+#
+# The ServiceAccount needs S3 read (IRSA or the node's instance role) and
+# the Databricks token in duckdb-uc-bench-secrets.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: duckdb-uc-bench
+  labels:
+    app.kubernetes.io/name: duckdb-uc-bench
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: duckdb-uc-bench
+    spec:
+      restartPolicy: Never
+      serviceAccountName: duckdb-uc-bench
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        node.kubernetes.io/instance-type: m6i.xlarge
+        dedicated: duckdb-bench
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: duckdb-bench
+          effect: NoSchedule
+      containers:
+        - name: bench
+          image: "<ecr-repo>/duckdb-uc-bench:latest"
+          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              rm -f /app/results/benchmark_results.csv
+              python -m benchmark.cli run --config /app/config/config.yaml
+              python -m benchmark.cli run-duckdb --config /app/config/config.yaml
+          env:
+            - name: DATABRICKS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: duckdb-uc-bench-secrets
+                  key: DATABRICKS_TOKEN
+            - name: AWS_REGION
+              value: us-east-2
+          resources:
+            requests:
+              cpu: "4"
+              memory: 12Gi
+              ephemeral-storage: 20Gi
+            limits:
+              cpu: "4"
+              memory: 12Gi
+              ephemeral-storage: 20Gi
+          volumeMounts:
+            - name: duckdb-tmp
+              mountPath: /var/duckdb-tmp
+            - name: config
+              mountPath: /app/config/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: results
+              mountPath: /app/results
+      volumes:
+        - name: duckdb-tmp
+          emptyDir:
+            sizeLimit: 20Gi
+        - name: results
+          emptyDir: {}
+        - name: config
+          secret:
+            secretName: duckdb-uc-bench-config
