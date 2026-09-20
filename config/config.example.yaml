@@ -1,0 +1,137 @@
+# Copy to config/config.yaml and fill in YOUR workspace values.
+# Do not commit config.yaml. Tokens and client secrets stay in the
+# environment (or a local .env that is gitignored).
+
+databricks:
+  host: <workspace-host.cloud.databricks.com>
+  http_path: /sql/1.0/warehouses/<warehouse-id>
+  token_env: DATABRICKS_TOKEN
+  # Optional OAuth M2M instead of a PAT. client_id is not secret;
+  # the secret comes from DATABRICKS_CLIENT_SECRET.
+  # client_id: <service-principal-client-id>
+  # client_secret_env: DATABRICKS_CLIENT_SECRET
+
+unity_catalog:
+  catalog: bench_catalog
+  schema: bench_schema
+  managed_schema: bench_schema_managed
+  managed_location_prefix: uc-managed
+  storage_credential_name: bench-s3-credential
+  external_location_name: bench-s3-location
+  create_if_missing: false
+  iam_role_arn: arn:aws:iam::<account-id>:role/<role-name>
+
+s3:
+  bucket: <your-benchmark-bucket>
+  root_prefix: duckdb-uc-bench
+  region: us-east-1
+  # Set for local smoke runs so DuckDB reads generated Parquet off disk.
+  # Leave empty when measuring against S3.
+  local_data_dir: ""
+
+warehouse:
+  size: Small
+  dbu_per_hour: 4.0
+  rate_usd_per_dbu_hour: 0.70
+
+duckdb:
+  # Paper pin: dedicated m6i.xlarge (4 vCPU, 16 GiB), Guaranteed 4 CPU / 12Gi.
+  threads: 4
+  memory_limit: 12GB
+  temp_directory: /var/duckdb-tmp
+  hourly_cost_usd: 0.0
+  warehouse_size: m6i.xlarge
+
+run:
+  cold_repetitions: 1
+  warm_repetitions: 3
+  results_path: results/benchmark_results.csv
+  queries_file: benchmark/queries.yaml
+  restart_warehouse_for_cold_run: true
+
+# All tables are synthetic. Iceberg twins are CTAS'd from the parquet
+# source_table. ds10 has no source_table -- create it with
+# convert_to_sorted_iceberg after ds9 exists.
+tables:
+  ds1:
+    format: parquet
+    path: ds1
+    synthetic: true
+    num_rows: 4424286
+    num_cols: 20
+    num_files: 8
+  ds2:
+    format: parquet
+    path: ds2
+    synthetic: true
+    num_rows: 679
+    num_cols: 20
+    num_files: 1
+  ds3:
+    format: parquet
+    path: ds3
+    synthetic: true
+    num_rows: 777156
+    num_cols: 17
+    num_files: 8
+  ds4:
+    format: parquet
+    path: ds4
+    synthetic: true
+    num_rows: 1404840
+    num_cols: 16
+    num_files: 8
+  ds5:
+    format: parquet
+    path: ds5
+    synthetic: true
+    num_rows: 30726
+    num_cols: 12
+    num_files: 1
+  ds6:
+    format: parquet
+    path: ds6
+    synthetic: true
+    num_rows: 7906
+    num_cols: 11
+    num_files: 1
+  ds7:
+    format: parquet
+    path: ds7
+    synthetic: true
+    num_rows: 11512
+    num_cols: 11
+    num_files: 1
+  ds9:
+    format: parquet
+    path: ds9
+    synthetic: true
+    num_rows: 500000
+    num_cols: 1000
+    num_files: 16
+  ds1_iceberg:
+    format: iceberg
+    source_table: ds1
+  ds2_iceberg:
+    format: iceberg
+    source_table: ds2
+  ds3_iceberg:
+    format: iceberg
+    source_table: ds3
+  ds4_iceberg:
+    format: iceberg
+    source_table: ds4
+  ds5_iceberg:
+    format: iceberg
+    source_table: ds5
+  ds6_iceberg:
+    format: iceberg
+    source_table: ds6
+  ds7_iceberg:
+    format: iceberg
+    source_table: ds7
+  ds9_iceberg:
+    format: iceberg
+    source_table: ds9
+  ds10:
+    format: iceberg
