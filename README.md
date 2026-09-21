@@ -1,4 +1,4 @@
-# DuckDB vs Unity Catalog Serverless SQL — EAB artifact
+# DuckDB vs Unity Catalog Serverless SQL 
 
 Harness, synthetic generator, shared queries, and published result CSVs for
 *DuckDB versus Unity Catalog Serverless SQL for Object-Store Analytics*.
