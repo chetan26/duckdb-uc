@@ -3,16 +3,49 @@
 Harness, synthetic generator, shared queries, and published result CSVs for
 *DuckDB versus Unity Catalog Serverless SQL for Object-Store Analytics*.
 
-Headline numbers are **cold latency** (one attempt after warehouse restart /
-new DuckDB process) on scan + CAST + ORDER BY + LIMIT, plus the rest of the
-77-query set including sorted Iceberg ds10. DuckDB runs on a dedicated
-Guaranteed **m6i.xlarge** pod (4 vCPU, 12 GiB, 20Gi spill). Databricks is a
-**Small** serverless SQL warehouse. Access paths differ by design: DuckDB
-Parquet is `read_parquet('s3://…')`; Databricks Parquet is a UC external
-table; Iceberg is DuckDB Iceberg REST vs Databricks managed CTAS. The
-comparison is those engines plus those access paths, not matched I/O.
 
-Every table is synthetic. Columns are `col_0`..`col_N` with types cycling
+`results/benchmark_results.csv` is the trace behind the paper. It is 696
+rows: 58 query ids, two engines, three cold attempts and three warm
+attempts each. There is no ds10.
+
+| Column | Published values |
+|--------|------------------|
+| Engine | `duckdb`, `databricks_uc_serverless` |
+| Warehouse size | `duckdb-local` on DuckDB rows, `Small` on UC rows |
+| Tables | ds1–ds7 and ds9, each as Parquet and as UC-managed Iceberg |
+
+Headline numbers in the paper are **cold attempt 1**. Warm numbers are the
+median of the last two of three warm attempts. They are recorded and
+plotted, and they are not the comparison.
+
+Cold attempt 1 in this CSV is a first touch on a warehouse that was already
+up for the suite, and a new DuckDB connection. It is not a warehouse
+restart before each query, and it does not drop the OS page cache. UC cold
+attempts 2 and 3 are result-cache hits. A per-query restart would add tens
+of seconds of UC spin-up on top of the 1–4 s first-statement band.
+
+The harness default in `config/config.example.yaml` is different from this
+CSV: `cold_repetitions: 1` and `restart_warehouse_for_cold_run: true`.
+Re-running with that default will not reproduce these rows.
+
+## Systems
+
+DuckDB is in-process with `httpfs`. Parquet is
+`read_parquet('s3://…')`. Iceberg attaches the Unity Catalog Iceberg REST
+catalog and reads the managed table by name. The paper pins 4 threads, a
+12 GB memory limit, and spill at `/var/duckdb-tmp` on a dedicated
+Guaranteed pod (4 vCPU, 12 GiB, 20 Gi ephemeral) in `us-east-2`. The CSV
+warehouse-size column for those rows is `duckdb-local`.
+
+UC Serverless is a Small SQL warehouse (4 DBU/h). Parquet is a UC external
+table. Iceberg is a managed `CREATE TABLE … USING ICEBERG AS SELECT`.
+Wall time includes execute plus `fetchall()`. Bytes scanned were not
+available from query history in this campaign.
+
+The comparison is those engines plus those access paths. It is not matched
+I/O.
+
+Every table is synthetic. Columns are `col_0`..`col_N`, types cycling
 `BIGINT` / `DOUBLE` / `VARCHAR` / `BOOLEAN` / `TIMESTAMP`. There is no
 customer data, no workspace tokens, and no source-system schema in this
 tree.
@@ -116,9 +149,7 @@ counts, CAST + ORDER BY + LIMIT) stay the same.
 | ds6  | 7,906    | 11 | cast vs no-cast               |
 | ds7  | 11,512   | 11 | unbounded LIMIT               |
 | ds9  | 500,000  | 1000 | wide synthetic              |
-| ds10 | 500,000  | 1000 | sorted Iceberg of ds9       |
-
-ds8 is out of scope.
+| ds10 | 500,000  | 1000 | sorted Iceberg of ds9 (not in this CSV) |
 
 ## Tests
 
