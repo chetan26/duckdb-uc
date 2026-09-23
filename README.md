@@ -11,7 +11,7 @@ attempts each. There is no ds10.
 | Column | Published values |
 |--------|------------------|
 | Engine | `duckdb`, `databricks_uc_serverless` |
-| Warehouse size | `duckdb-local` on DuckDB rows, `Small` on UC rows |
+| Warehouse size | `Small` on UC rows |
 | Tables | ds1–ds7 and ds9, each as Parquet and as UC-managed Iceberg |
 
 Headline numbers in the paper are **cold attempt 1**. Warm numbers are the
